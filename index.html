@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="es"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7c600">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<title>ParentDrive</title>
+<meta name="apple-mobile-web-app-title" content="ParentDrive">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+:root{--ink:#1a1a17;--paper:#f2f0e8;--taxi:#f7c600;--lcd:#16201a;--amber:#ffb000;--line:#cfcab9;--mute:#6b6a60}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.4 system-ui,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+main{max-width:480px;margin:0 auto;padding:12px 16px 90px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--ink);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;padding:16px 0;background:none;border:0;color:#bbb;font:600 15px system-ui}
+nav button[aria-selected=true]{color:var(--ink);background:var(--taxi)}
+.stripe{height:14px;background:repeating-linear-gradient(90deg,var(--ink) 0 14px,var(--taxi) 14px 28px);margin:0 -16px 12px}
+.lcd{background:var(--lcd);border-radius:10px;padding:14px 16px;color:var(--amber);font-family:ui-monospace,Menlo,Consolas,monospace;box-shadow:inset 0 0 0 3px #0a110c}
+.lcd .big{font-size:64px;font-weight:700;line-height:1;text-align:right;letter-spacing:-2px}
+.row{display:flex;justify-content:space-between;gap:8px;margin-top:10px;font-size:20px}
+.row small{display:block;font-size:12px;color:#c58a00}
+.btn{display:block;width:100%;padding:16px;border:0;border-radius:10px;font:700 18px system-ui;margin-top:12px;background:var(--ink);color:#fff}
+.btn.go{background:var(--taxi);color:var(--ink)}.btn.stop{background:#b3261e}.btn.alt{background:none;color:var(--ink);border:2px solid var(--ink)}
+label{display:block;margin-top:12px;font-weight:600}
+label span{font-weight:400;color:var(--mute);font-size:13px;display:block}
+input,select{width:100%;padding:12px;font-size:18px;border:2px solid var(--line);border-radius:8px;background:#fff;margin-top:4px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+h1{margin:0 0 10px;font-size:24px;letter-spacing:-.5px}
+h2{margin:18px 0 4px;font-size:20px}
+.trip{border-bottom:1px solid var(--line);padding:10px 0;display:flex;justify-content:space-between;gap:10px}
+.trip b{font-size:18px}.trip small{color:var(--mute);display:block}
+.trip button{background:none;border:0;color:#b3261e;font-size:13px;padding:0}
+.total{background:var(--taxi);border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;font-weight:700;font-size:18px}
+.note{color:var(--mute);font-size:13px}
+[hidden]{display:none!important}
+</style></head><body><main>
+<div class="stripe"></div>
+<h1>ParentDrive</h1>
+
+<section id="v-trip">
+ <div class="lcd">
+  <div class="big" id="fare">0,00 €</div>
+  <div class="row"><div><span id="km">0,00</span> km<small id="kmsub">GPS parado</small></div><div><span id="time">00:00</span><small>total</small></div><div><span id="wait">00:00</span><small>espera</small></div></div>
+ </div>
+ <label>¿Quién viaja? <span>Para ver en el historial a quién se le "cobra"</span><input id="who" placeholder="Ej. Hijo, ida al cole"></label>
+ <button class="btn go" id="start">Iniciar viaje</button>
+ <button class="btn alt" id="waitBtn" hidden>Iniciar espera</button>
+ <button class="btn stop" id="stop" hidden>Terminar y guardar</button>
+ <button class="btn alt" id="manualBtn">Añadir viaje a mano</button>
+ <div id="manual" hidden>
+  <div class="grid"><label>Km<input id="mk" type="number" inputmode="decimal" min="0"></label><label>Minutos en marcha<input id="mm" type="number" inputmode="decimal" min="0"></label><label>Minutos de espera<input id="mw" type="number" inputmode="decimal" min="0"></label></div>
+  <button class="btn" id="mSave">Guardar viaje manual</button>
+ </div>
+ <p class="note" id="gpsMsg">Para medir los km, mantén la app abierta y la pantalla encendida durante el viaje.</p>
+</section>
+
+<section id="v-hist" hidden>
+ <div class="total"><span>Total acumulado</span><span id="tot">0,00 €</span></div>
+ <div id="list"></div>
+ <button class="btn alt" id="csv">Exportar CSV</button>
+</section>
+
+<section id="v-set" hidden>
+ <h2>Tarifa del viaje</h2>
+ <div class="grid">
+  <label>Precio por km (€)<span>Lo que se cobra por cada km</span><input id="pkm" type="number" inputmode="decimal" step="0.01"></label>
+  <label>Bajada de bandera (€)<span>Se suma a cada viaje</span><input id="base" type="number" inputmode="decimal" step="0.1"></label>
+  <label>Precio por minuto (€)<span>Tiempo en movimiento</span><input id="pmin" type="number" inputmode="decimal" step="0.01"></label>
+  <label>Precio por minuto de espera (€)<span>Cuando el coche está parado esperando</span><input id="pwait" type="number" inputmode="decimal" step="0.01"></label>
+ </div>
+ <h2>Calculadora del precio por km</h2>
+ <p class="note">Sirve para elegir una tarifa justa según lo que cuesta la energía. No cambia cómo se registran los viajes: siempre se cobra el precio por km de arriba.</p>
+ <div class="grid">
+  <label>Electricidad (€/kWh)<input id="pe" type="number" inputmode="decimal" step="0.01"></label>
+  <label>Gasolina (€/litro)<input id="pg" type="number" inputmode="decimal" step="0.01"></label>
+  <label>Consumo eléctrico (kWh/100 km)<input id="ce" type="number" inputmode="decimal" step="0.1"></label>
+  <label>Consumo gasolina (l/100 km)<input id="cg" type="number" inputmode="decimal" step="0.1"></label>
+  <label>Km habituales en eléctrico<span>Lo que sueles hacer con la batería</span><input id="range" type="number" inputmode="decimal"></label>
+  <label>Km habituales en térmico<span>Lo que sueles hacer con gasolina</span><input id="kmT" type="number" inputmode="decimal"></label>
+ </div>
+ <p class="note">Coste por km en eléctrico: <b id="cEv">–</b> · en gasolina: <b id="cIce">–</b> · medio según tu reparto: <b id="cAvg">–</b></p>
+ <button class="btn alt" id="useAvg">Usar el coste medio como precio por km</button>
+ <p class="note">Los cambios se guardan solos.</p>
+ <button class="btn alt" id="clear">Borrar todo el historial</button>
+</section>
+</main>
+<nav role="tablist"><button role="tab" data-v="trip" aria-selected="true">Viaje</button><button role="tab" data-v="hist" aria-selected="false">Historial</button><button role="tab" data-v="set" aria-selected="false">Tarifa</button></nav>
+
+<script>
+const $=id=>document.getElementById(id);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const DEF={pe:0.15,pg:1.55,ce:18,cg:6,range:50,base:0,pmin:0,pwait:0.15,pkm:0.1,kmT:50};
+let S=Object.assign({},DEF,store.get('cfg',{}));
+let H=store.get('trips',[]);
+const eur=n=>n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+const num=v=>{const n=parseFloat(String(v).replace(',','.'));return isFinite(n)?n:0};
+
+/* tarifa */
+const eKm=()=>S.ce/100*S.pe, tKm=()=>S.cg/100*S.pg;
+const avgKm=()=>{const k=S.range+S.kmT;return k>0?(S.range*eKm()+S.kmT*tKm())/k:0};
+function cost(km,min,wait){return {total:S.base+km*S.pkm+min*S.pmin+(wait||0)*S.pwait}}
+
+/* ajustes */
+['pe','pg','ce','cg','range','base','pmin','pwait','pkm','kmT'].forEach(k=>{
+  $(k).value=S[k];
+  $(k).addEventListener('input',()=>{S[k]=num($(k).value);store.set('cfg',S);refreshRates()})
+});
+function refreshRates(){$('cEv').textContent=eur(eKm())+'/km';$('cIce').textContent=eur(tKm())+'/km';$('cAvg').textContent=eur(avgKm())+'/km'}
+$('useAvg').onclick=()=>{S.pkm=Math.round(avgKm()*100)/100;$('pkm').value=S.pkm;store.set('cfg',S)};
+refreshRates();
+
+/* pestañas */
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.setAttribute('aria-selected',x===b));
+  ['trip','hist','set'].forEach(v=>$('v-'+v).hidden=v!==b.dataset.v);
+  if(b.dataset.v==='hist')renderHist();
+});
+
+/* viaje */
+let waitMs=0,waitStart=null;
+let running=false,t0=0,meters=0,last=null,watch=null,tick=null,wl=null;
+function mmss(min){const s=Math.floor(min*60);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function live(){
+  const now=Date.now(),tot=(now-t0)/60000,w=(waitMs+(waitStart?now-waitStart:0))/60000,mv=tot-w,km=meters/1000;
+  $('km').textContent=km.toFixed(2).replace('.',',');
+  $('time').textContent=mmss(tot);$('wait').textContent=mmss(w);
+  const c=cost(km,mv,w);
+  $('fare').textContent=eur(c.total);
+  $('kmsub').textContent=waitStart?'en espera':'en marcha';
+}
+function dist(a,b){const R=6371000,r=x=>x*Math.PI/180,dl=r(b.lat-a.lat),dn=r(b.lon-a.lon);
+  const h=Math.sin(dl/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+$('start').onclick=async()=>{
+  running=true;t0=Date.now();meters=0;last=null;waitMs=0;waitStart=null;
+  $('start').hidden=true;$('stop').hidden=false;$('waitBtn').hidden=false;$('waitBtn').textContent='Iniciar espera';$('manualBtn').hidden=true;$('manual').hidden=true;
+  if(!navigator.geolocation){$('gpsMsg').textContent='Este dispositivo no tiene GPS. Usa "Añadir viaje a mano".'}
+  else watch=navigator.geolocation.watchPosition(p=>{
+    if(p.coords.accuracy>50)return;
+    const pt={lat:p.coords.latitude,lon:p.coords.longitude};
+    if(waitStart){last=pt;return}
+    if(last){const d=dist(last,pt);if(d>=8&&d<500){meters+=d;last=pt}}else last=pt;
+    $('gpsMsg').textContent='GPS activo (precisión '+Math.round(p.coords.accuracy)+' m)';
+  },e=>{$('gpsMsg').textContent='Sin GPS: activa la ubicación para esta app.'},{enableHighAccuracy:true,maximumAge:0});
+  try{wl=await navigator.wakeLock.request('screen')}catch(e){}
+  tick=setInterval(live,500);live();
+};
+$('waitBtn').onclick=()=>{
+  if(waitStart){waitMs+=Date.now()-waitStart;waitStart=null;$('waitBtn').textContent='Iniciar espera'}
+  else{waitStart=Date.now();$('waitBtn').textContent='Reanudar viaje'}
+  live();
+};
+$('stop').onclick=()=>{
+  const now=Date.now(),w=(waitMs+(waitStart?now-waitStart:0))/60000,min=(now-t0)/60000-w,km=meters/1000;
+  waitStart=null;
+  clearInterval(tick);if(watch!==null)navigator.geolocation.clearWatch(watch);try{wl&&wl.release()}catch(e){}
+  running=false;$('start').hidden=false;$('stop').hidden=true;$('waitBtn').hidden=true;$('manualBtn').hidden=false;
+  save(km,min,w);
+  $('fare').textContent='0,00 €';$('km').textContent='0,00';$('time').textContent='00:00';$('wait').textContent='00:00';$('kmsub').textContent='GPS parado';
+  $('gpsMsg').textContent='Viaje guardado en el historial.';
+};
+function save(km,min,wait){
+  const c=cost(km,min,wait);
+  H.unshift({id:Date.now(),date:new Date().toISOString(),who:$('who').value.trim(),km,min,wait:wait||0,total:c.total});
+  store.set('trips',H);
+}
+$('manualBtn').onclick=()=>$('manual').hidden=!$('manual').hidden;
+$('mSave').onclick=()=>{const km=num($('mk').value),min=num($('mm').value),w=num($('mw').value);if(!km&&!min&&!w)return;
+  save(km,min,w);$('mk').value=$('mm').value=$('mw').value='';$('manual').hidden=true;$('gpsMsg').textContent='Viaje manual guardado.'};
+
+/* historial */
+function renderHist(){
+  $('tot').textContent=eur(H.reduce((a,t)=>a+t.total,0));
+  $('list').innerHTML=H.length?'':'<p class="note">Aún no hay viajes. Los viajes que termines aparecerán aquí.</p>';
+  H.forEach(t=>{
+    const d=document.createElement('div');d.className='trip';
+    const f=new Date(t.date).toLocaleString('es-ES',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    d.innerHTML='<div><b></b><small></small><small></small></div><div style="text-align:right"><b></b><br><button>Borrar</button></div>';
+    const [a,b]=d.querySelectorAll('div');
+    a.children[0].textContent=t.who||'Viaje';
+    a.children[1].textContent=f;
+    a.children[2].textContent=t.km.toFixed(1).replace('.',',')+' km · '+Math.round(t.min)+' min'+(t.wait>0?' + '+Math.round(t.wait)+' min de espera':'');
+    b.children[0].textContent=eur(t.total);
+    b.querySelector('button').onclick=()=>{H=H.filter(x=>x.id!==t.id);store.set('trips',H);renderHist()};
+    $('list').appendChild(d);
+  });
+}
+$('csv').onclick=()=>{
+  const rows=[['fecha','quien','km','minutos_en_marcha','minutos_espera','coste_eur'],...H.map(t=>[t.date,'"'+t.who.replace(/"/g,'""')+'"',t.km.toFixed(2),t.min.toFixed(1),(t.wait||0).toFixed(1),t.total.toFixed(2)])];
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.map(r=>r.join(';')).join('\n')],{type:'text/csv'}));a.download='viajes.csv';a.click();
+};
+$('clear').onclick=()=>{if(confirm('¿Borrar todo el historial?')){H=[];store.set('trips',H);renderHist()}};
+
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script></body></html>
