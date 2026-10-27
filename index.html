@@ -8,7 +8,7 @@
 <title>ParentDrive</title>
 <meta name="apple-mobile-web-app-title" content="ParentDrive">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="apple-touch-icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root{--ink:#1a1a17;--paper:#f2f0e8;--taxi:#f7c600;--lcd:#16201a;--amber:#ffb000;--line:#cfcab9;--mute:#6b6a60}
 *{box-sizing:border-box}
@@ -193,5 +193,5 @@ $('csv').onclick=()=>{
 };
 $('clear').onclick=()=>{if(confirm('¿Borrar todo el historial?')){H=[];store.set('trips',H);renderHist()}};
 
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(e=>console.error('No se pudo registrar el service worker:',e));
 </script></body></html>
